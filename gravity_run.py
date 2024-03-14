@@ -10,7 +10,7 @@ pygame.init()
 window_info = pygame.display.Info()
 WINDOW_WIDTH = window_info.current_w
 WINDOW_HEIGHT = window_info.current_h
-window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.FULLSCREEN)
+window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT)) #, pygame.FULLSCREEN)
 font = pygame.font.SysFont("consolas",56)
 pygame.display.set_caption("Gravity Run")
 
@@ -96,16 +96,26 @@ class Spaceship(pygame.sprite.Sprite):
         self.speed_y = 0.999*self.speed_y
 
         # Wrap around the side walls
-        if self.rect.left < 0:
-            self.rect.right = WINDOW_WIDTH
-        elif self.rect.right > WINDOW_WIDTH:
-            self.rect.left = 0
+        #if self.rect.left < 0:
+        #    self.rect.right = WINDOW_WIDTH
+        #elif self.rect.right > WINDOW_WIDTH:
+        #    self.rect.left = 0
+
+        # Add this check to end the game if the spaceship hits the sides
+        if self.rect.left < 0 or self.rect.right > WINDOW_WIDTH:
+            return "game_over"
 
         # Keep the spaceship on the screen
         self.rect.x = max(0, min(WINDOW_WIDTH - self.rect.width, self.rect.x))
         self.rect.y = max(0, min(WINDOW_HEIGHT - self.rect.height, self.rect.y))
 
-        import random
+def display_game_over(score):
+    game_over_font = pygame.font.SysFont("Consolas", 72)
+    game_over_text = game_over_font.render("Game Over", True, (255, 255, 255))
+    score_text = game_over_font.render(f"Score: {score}", True, (255, 255, 255))
+    window.blit(game_over_text, (WINDOW_WIDTH // 2 - game_over_text.get_width() // 2, WINDOW_HEIGHT // 2 - 100))
+    window.blit(score_text, (WINDOW_WIDTH // 2 - score_text.get_width() // 2, WINDOW_HEIGHT // 2 + 50))
+    pygame.display.flip()
 
 class GravityObject(pygame.sprite.Sprite):
     def __init__(self, x, y, size, speed_y):
@@ -182,6 +192,7 @@ while running:
         #gravity_object.update(gravity_objects)
         player.apply_gravity(gravity_object)
     player.update()
+    game_over = player.update()
     gravity_objects.update()
     blue_objects.update()
     
@@ -204,6 +215,7 @@ while running:
         score += random.randint(10, 50)  # Adjust the score range as needed
         blue_object_hit.kill()
         # Display the random number at the position of the hit blue object
+        font = pygame.font.SysFont("consolas",int(WINDOW_HEIGHT*0.05))
         score_text = font.render(str(score), True, (255, 255, 255))
         window.blit(score_text, blue_object_hit.rect.topleft)
 
@@ -215,7 +227,12 @@ while running:
     for gravity_object in gravity_objects:
         window.blit(gravity_object.image, gravity_object.rect)
     window.blit(player.image, player.rect)
-    window.blit(score_text, (10, WINDOW_HEIGHT - 30))
+    window.blit(score_text, (WINDOW_WIDTH*0.075, WINDOW_HEIGHT - 0.1*WINDOW_HEIGHT))
+
+    # Check if the game is over
+    if game_over == "game_over":
+        display_game_over(score)
+        #running = False
 
     # Update the display
     pygame.display.flip()
