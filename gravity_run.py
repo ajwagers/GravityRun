@@ -2,14 +2,54 @@ import pygame
 import random
 import math
 
+
 # Initialize Pygame
 pygame.init()
 
-# Set up the game window
-WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 600
-window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-pygame.display.set_caption("Spaceship Sidescroller")
+# Set up the game window in fullscreen mode
+window_info = pygame.display.Info()
+WINDOW_WIDTH = window_info.current_w
+WINDOW_HEIGHT = window_info.current_h
+window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.FULLSCREEN)
+font = pygame.font.SysFont("consolas",56)
+pygame.display.set_caption("Gravity Run")
+
+# Colors for stars
+STAR_COLORS = [(255, 0, 0), (255, 165, 0), (255, 255, 0), (255, 255, 255), (173, 216, 230), (0, 191, 255)]
+
+# Star layers
+STAR_LAYERS = [
+    {"speed": 0, "max_size": 1, "elongation": 1, "star_count": 200},    # Stationary background layer
+    {"speed": 0.1, "max_size": 1, "elongation": 1.25, "star_count": 100},
+    {"speed": 0.25, "max_size": 2, "elongation": 1.25, "star_count": 30},
+    {"speed": 0.5, "max_size": 3, "elongation": 1.25, "star_count": 15},
+    {"speed": 1, "max_size": 4, "elongation": 1.25, "star_count": 8}
+]
+
+# Initialize star layers
+star_layers = []
+for layer in STAR_LAYERS:
+    stars = []
+    for _ in range(layer["star_count"]):  # Adjust the number of stars per layer
+        x = random.randrange(WINDOW_WIDTH)
+        y = random.randrange(WINDOW_HEIGHT)
+        size = random.randint(1, layer["max_size"])
+        elongated_size = (size, int(size * layer["elongation"]))
+        base_color = random.choice(STAR_COLORS)
+        color_factor = (255 - layer["star_count"])/255
+        color = (int(base_color[0] * color_factor), int(base_color[1] * color_factor), int(base_color[2] * color_factor))
+        stars.append({"x": x, "y": y, "size": elongated_size, "color": color})
+    star_layers.append(stars)
+
+# Generate Level 1
+def generate_level_layout(num_rows, offset_range):
+    layout = []
+    for row in range(num_rows):
+        size = random.randint(30, 80)
+        x_offset = random.randint(-offset_range, offset_range)
+        y_pos = -50 - (row * 200)  # Adjust the vertical spacing as needed
+        layout.append({"size": size, "x": WINDOW_WIDTH // 2 + x_offset, "y": y_pos, "speed_y": 2})
+    return layout
 
 class Spaceship(pygame.sprite.Sprite):
     def __init__(self):
@@ -17,7 +57,7 @@ class Spaceship(pygame.sprite.Sprite):
         self.image = pygame.Surface((50, 30))
         self.image.fill((255, 255, 255))
         self.rect = self.image.get_rect()
-        self.rect.x = 50
+        self.rect.x = WINDOW_WIDTH // 2
         self.rect.y = WINDOW_HEIGHT // 2
         self.speed_x = 0
         self.speed_y = 0
@@ -68,15 +108,15 @@ class Spaceship(pygame.sprite.Sprite):
         import random
 
 class GravityObject(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, x, y, size, speed_y):
         super().__init__()
-        size = random.randint(20,100)
-        self.image = pygame.Surface((size, size))
-        self.image.fill((255, 0, 0))
+        #size = random.randint(50,100)
+        self.image = pygame.Surface((size * 2, size * 2), pygame.SRCALPHA)
+        pygame.draw.circle(self.image, (255, 0, 0), (size,size), size)
         self.rect = self.image.get_rect()
-        self.rect.y = -50
-        self.rect.x = random.randint(50, WINDOW_WIDTH - 50)
-        self.speed_y = random.randint(1,20)
+        self.rect.x = x
+        self.rect.y = y
+        self.speed_y = speed_y
         self.mass = size
 
     def update(self):
@@ -90,14 +130,39 @@ class GravityObject(pygame.sprite.Sprite):
         #    self.rect.y = -50
         #    colliding_objects = pygame.sprite.spritecollide(self, self.gravity_objects, False)
 
+class BlueObject(pygame.sprite.Sprite):
+    def __init__(self, x, y, speed_y):
+        super().__init__()
+        self.image = pygame.Surface((30, 30))
+        self.image.fill((0, 0, 255))
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.speed_y = speed_y
+        self.size = 30
+
+    def update(self):
+        self.rect.y += self.speed_y
+        if self.rect.top > WINDOW_HEIGHT:
+            self.kill()
+
+# Generate the level layout
+level_layout = generate_level_layout(20, 150)  # Adjust the arguments as needed
 
 # Create the player and gravity objects
 player = Spaceship()
 gravity_objects = pygame.sprite.Group()
+blue_objects = pygame.sprite.Group()
+for obj in level_layout:
+    gravity_object = GravityObject(obj["x"], obj["y"], obj["size"], obj["speed_y"])
+    gravity_objects.add(gravity_object)
+    blue_object = BlueObject(obj["x"], obj["y"] - 100, obj["speed_y"])
+    blue_objects.add(blue_object)
 
 # Game loop
 running = True
 clock = pygame.time.Clock()
+score = 0
 while running:
     # Handle events
     for event in pygame.event.get():
@@ -108,9 +173,9 @@ while running:
                 running = False
 
     # Spawn new gravity objects
-    if len(gravity_objects) < 5 and random.random() < 0.07:
-        gravity_object = GravityObject()
-        gravity_objects.add(gravity_object)
+    #if len(gravity_objects) < 5 and random.random() < 0.07:
+    #    gravity_object = GravityObject()
+    #    gravity_objects.add(gravity_object)
 
     # Update the player and gravity objects
     for gravity_object in gravity_objects:
@@ -118,14 +183,39 @@ while running:
         player.apply_gravity(gravity_object)
     player.update()
     gravity_objects.update()
+    blue_objects.update()
     
     # Clear the window
     window.fill((0, 0, 0))
 
+    # Draw stars
+    for i, layer in enumerate(star_layers):
+        for star in layer:
+            star["y"] += STAR_LAYERS[i]["speed"]  # Move stars based on layer speed
+            if star["y"] > WINDOW_HEIGHT + star["size"][1]:  # Wrap around if star goes off-screen
+                star["y"] = -star["size"][1]
+                star["x"] = random.randrange(WINDOW_WIDTH)
+                star["color"] = random.choice(STAR_COLORS)
+            pygame.draw.rect(window, star["color"], (star["x"], star["y"], star["size"][0], star["size"][1]))
+
+    # Check for collisions between the player and blue objects
+    blue_object_hit = pygame.sprite.spritecollideany(player, blue_objects)
+    if blue_object_hit:
+        score += random.randint(10, 50)  # Adjust the score range as needed
+        blue_object_hit.kill()
+        # Display the random number at the position of the hit blue object
+        score_text = font.render(str(score), True, (255, 255, 255))
+        window.blit(score_text, blue_object_hit.rect.topleft)
+
+    # Render the score text
+    score_text = font.render(f"Score: {score}", True, (255, 255, 255))
+
     # Draw the player and gravity objects
-    window.blit(player.image, player.rect)
+    blue_objects.draw(window)
     for gravity_object in gravity_objects:
         window.blit(gravity_object.image, gravity_object.rect)
+    window.blit(player.image, player.rect)
+    window.blit(score_text, (10, WINDOW_HEIGHT - 30))
 
     # Update the display
     pygame.display.flip()
