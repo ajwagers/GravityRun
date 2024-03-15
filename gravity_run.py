@@ -41,6 +41,88 @@ for layer in STAR_LAYERS:
         stars.append({"x": x, "y": y, "size": elongated_size, "color": color})
     star_layers.append(stars)
 
+def show_menu():
+    menu_font = pygame.font.SysFont('Consolas', 48)
+    title_font = pygame.font.SysFont('Consolas', 72)
+
+    # Initialize star layers
+    star_layers = []
+    for layer in STAR_LAYERS:
+        stars = []
+        for _ in range(layer["star_count"]):  # Adjust the number of stars per layer
+            x = random.randrange(WINDOW_WIDTH)
+            y = random.randrange(WINDOW_HEIGHT)
+            size = random.randint(1, layer["max_size"])
+            elongated_size = (size, int(size * layer["elongation"]))
+            base_color = random.choice(STAR_COLORS)
+            color_factor = (255 - layer["star_count"])/255
+            color = (int(base_color[0] * color_factor), int(base_color[1] * color_factor), int(base_color[2] * color_factor))
+            stars.append({"x": x, "y": y, "size": elongated_size, "color": color})
+        star_layers.append(stars)
+
+
+
+    title_text = title_font.render("Gravity Run", True, (255, 255, 255))
+    title_rect = title_text.get_rect(midtop=(WINDOW_WIDTH // 2, 50))
+
+    play_text = menu_font.render("Play", True, (255, 255, 255))
+    play_rect = play_text.get_rect(midtop=(WINDOW_WIDTH // 2, 200))
+
+    instructions_text = menu_font.render("Instructions", True, (255, 255, 255))
+    instructions_rect = instructions_text.get_rect(midtop=(WINDOW_WIDTH // 2, 300))
+
+    quit_text = menu_font.render("Quit", True, (255, 255, 255))
+    quit_rect = quit_text.get_rect(midtop=(WINDOW_WIDTH // 2, 400))
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if play_rect.collidepoint(event.pos):
+                    return "play"
+                elif instructions_rect.collidepoint(event.pos):
+                    show_instructions()
+                elif quit_rect.collidepoint(event.pos):
+                    pygame.quit()
+                    return
+
+        window.fill((0, 0, 0))
+        # Draw stars
+        for i, layer in enumerate(star_layers):
+            for star in layer:
+                star["y"] += STAR_LAYERS[i]["speed"]  # Move stars based on layer speed
+                if star["y"] > WINDOW_HEIGHT + star["size"][1]:  # Wrap around if star goes off-screen
+                    star["y"] = -star["size"][1]
+                    star["x"] = random.randrange(WINDOW_WIDTH)
+                    star["color"] = random.choice(STAR_COLORS)
+                pygame.draw.rect(window, star["color"], (star["x"], star["y"], star["size"][0], star["size"][1]))
+        window.blit(title_text, title_rect)
+        window.blit(play_text, play_rect)
+        window.blit(instructions_text, instructions_rect)
+        window.blit(quit_text, quit_rect)
+        pygame.display.flip()
+
+def show_instructions():
+    instructions_font = pygame.font.Font(None, 36)
+    instructions_text = instructions_font.render("Instructions go here...", True, (255, 255, 255))
+    instructions_rect = instructions_text.get_rect(midtop=(WINDOW_WIDTH // 2, 50))
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return
+
+        window.fill((0, 0, 0))
+        window.blit(instructions_text, instructions_rect)
+        pygame.display.flip()
+
 # Generate Level 1
 def generate_level_layout(num_rows, offset_range):
     layout = []
@@ -156,89 +238,95 @@ class BlueObject(pygame.sprite.Sprite):
         if self.rect.top > WINDOW_HEIGHT:
             self.kill()
 
-# Generate the level layout
-level_layout = generate_level_layout(20, 150)  # Adjust the arguments as needed
+# Show the menu screen
+menu_choice = show_menu()
 
-# Create the player and gravity objects
-player = Spaceship()
-gravity_objects = pygame.sprite.Group()
-blue_objects = pygame.sprite.Group()
-for obj in level_layout:
-    gravity_object = GravityObject(obj["x"], obj["y"], obj["size"], obj["speed_y"])
-    gravity_objects.add(gravity_object)
-    blue_object = BlueObject(obj["x"], obj["y"] - 100, obj["speed_y"])
-    blue_objects.add(blue_object)
+# Start the game if 'Play' is selected
+if menu_choice == "play":
 
-# Game loop
-running = True
-clock = pygame.time.Clock()
-score = 0
-while running:
-    # Handle events
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
+    # Generate the level layout
+    level_layout = generate_level_layout(20, 150)  # Adjust the arguments as needed
+
+    # Create the player and gravity objects
+    player = Spaceship()
+    gravity_objects = pygame.sprite.Group()
+    blue_objects = pygame.sprite.Group()
+    for obj in level_layout:
+        gravity_object = GravityObject(obj["x"], obj["y"], obj["size"], obj["speed_y"])
+        gravity_objects.add(gravity_object)
+        blue_object = BlueObject(obj["x"], obj["y"] - 100, obj["speed_y"])
+        blue_objects.add(blue_object)
+
+    # Game loop
+    running = True
+    clock = pygame.time.Clock()
+    score = 0
+    while running:
+        # Handle events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
                 running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    running = False
 
-    # Spawn new gravity objects
-    #if len(gravity_objects) < 5 and random.random() < 0.07:
-    #    gravity_object = GravityObject()
-    #    gravity_objects.add(gravity_object)
+        # Spawn new gravity objects
+        #if len(gravity_objects) < 5 and random.random() < 0.07:
+        #    gravity_object = GravityObject()
+        #    gravity_objects.add(gravity_object)
 
-    # Update the player and gravity objects
-    for gravity_object in gravity_objects:
-        #gravity_object.update(gravity_objects)
-        player.apply_gravity(gravity_object)
-    player.update()
-    game_over = player.update()
-    gravity_objects.update()
-    blue_objects.update()
+        # Update the player and gravity objects
+        for gravity_object in gravity_objects:
+            #gravity_object.update(gravity_objects)
+            player.apply_gravity(gravity_object)
+        player.update()
+        game_over = player.update()
+        gravity_objects.update()
+        blue_objects.update()
     
-    # Clear the window
-    window.fill((0, 0, 0))
+        # Clear the window
+        window.fill((0, 0, 0))
 
-    # Draw stars
-    for i, layer in enumerate(star_layers):
-        for star in layer:
-            star["y"] += STAR_LAYERS[i]["speed"]  # Move stars based on layer speed
-            if star["y"] > WINDOW_HEIGHT + star["size"][1]:  # Wrap around if star goes off-screen
-                star["y"] = -star["size"][1]
-                star["x"] = random.randrange(WINDOW_WIDTH)
-                star["color"] = random.choice(STAR_COLORS)
-            pygame.draw.rect(window, star["color"], (star["x"], star["y"], star["size"][0], star["size"][1]))
+        # Draw stars
+        for i, layer in enumerate(star_layers):
+            for star in layer:
+                star["y"] += STAR_LAYERS[i]["speed"]  # Move stars based on layer speed
+                if star["y"] > WINDOW_HEIGHT + star["size"][1]:  # Wrap around if star goes off-screen
+                    star["y"] = -star["size"][1]
+                    star["x"] = random.randrange(WINDOW_WIDTH)
+                    star["color"] = random.choice(STAR_COLORS)
+                pygame.draw.rect(window, star["color"], (star["x"], star["y"], star["size"][0], star["size"][1]))
 
-    # Check for collisions between the player and blue objects
-    blue_object_hit = pygame.sprite.spritecollideany(player, blue_objects)
-    if blue_object_hit:
-        score += random.randint(10, 50)  # Adjust the score range as needed
-        blue_object_hit.kill()
-        # Display the random number at the position of the hit blue object
-        font = pygame.font.SysFont("consolas",int(WINDOW_HEIGHT*0.05))
-        score_text = font.render(str(score), True, (255, 255, 255))
-        window.blit(score_text, blue_object_hit.rect.topleft)
+        # Check for collisions between the player and blue objects
+        blue_object_hit = pygame.sprite.spritecollideany(player, blue_objects)
+        if blue_object_hit:
+            score += random.randint(10, 50)  # Adjust the score range as needed
+            blue_object_hit.kill()
+            # Display the random number at the position of the hit blue object
+            font = pygame.font.SysFont("consolas",int(WINDOW_HEIGHT*0.05))
+            score_text = font.render(str(score), True, (255, 255, 255))
+            window.blit(score_text, blue_object_hit.rect.topleft)
 
-    # Render the score text
-    score_text = font.render(f"Score: {score}", True, (255, 255, 255))
+        # Render the score text
+        score_text = font.render(f"Score: {score}", True, (255, 255, 255))
 
-    # Draw the player and gravity objects
-    blue_objects.draw(window)
-    for gravity_object in gravity_objects:
-        window.blit(gravity_object.image, gravity_object.rect)
-    window.blit(player.image, player.rect)
-    window.blit(score_text, (WINDOW_WIDTH*0.075, WINDOW_HEIGHT - 0.1*WINDOW_HEIGHT))
+        # Draw the player and gravity objects
+        blue_objects.draw(window)
+        for gravity_object in gravity_objects:
+            window.blit(gravity_object.image, gravity_object.rect)
+        window.blit(player.image, player.rect)
+        window.blit(score_text, (WINDOW_WIDTH*0.075, WINDOW_HEIGHT - 0.1*WINDOW_HEIGHT))
 
-    # Check if the game is over
-    if game_over == "game_over":
-        display_game_over(score)
-        #running = False
+        # Check if the game is over
+        if game_over == "game_over":
+            display_game_over(score)
+            #running = False
 
-    # Update the display
-    pygame.display.flip()
+        # Update the display
+        pygame.display.flip()
 
-    # Limit the frame rate
-    clock.tick(60)
+        # Limit the frame rate
+        clock.tick(60)
 
 # Quit Pygame
 pygame.quit()
