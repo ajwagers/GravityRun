@@ -1,6 +1,7 @@
 import pygame
 import random
 import math
+import numpy as np
 
 
 # Initialize Pygame
@@ -8,8 +9,8 @@ pygame.init()
 
 # Set up the game window in fullscreen mode
 window_info = pygame.display.Info()
-WINDOW_WIDTH = window_info.current_w
-WINDOW_HEIGHT = window_info.current_h
+WINDOW_WIDTH = 1200 #window_info.current_w
+WINDOW_HEIGHT = 800 #window_info.current_h
 window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT)) #, pygame.FULLSCREEN)
 font = pygame.font.SysFont("consolas",56)
 pygame.display.set_caption("Gravity Run")
@@ -27,25 +28,7 @@ STAR_LAYERS = [
 ]
 
 # Initialize star layers
-star_layers = []
-for layer in STAR_LAYERS:
-    stars = []
-    for _ in range(layer["star_count"]):  # Adjust the number of stars per layer
-        x = random.randrange(WINDOW_WIDTH)
-        y = random.randrange(WINDOW_HEIGHT)
-        size = random.randint(1, layer["max_size"])
-        elongated_size = (size, int(size * layer["elongation"]))
-        base_color = random.choice(STAR_COLORS)
-        color_factor = (255 - layer["star_count"])/255
-        color = (int(base_color[0] * color_factor), int(base_color[1] * color_factor), int(base_color[2] * color_factor))
-        stars.append({"x": x, "y": y, "size": elongated_size, "color": color})
-    star_layers.append(stars)
-
-def show_menu():
-    menu_font = pygame.font.SysFont('Consolas', 48)
-    title_font = pygame.font.SysFont('Consolas', 72)
-
-    # Initialize star layers
+def init_star_layers():
     star_layers = []
     for layer in STAR_LAYERS:
         stars = []
@@ -59,27 +42,58 @@ def show_menu():
             color = (int(base_color[0] * color_factor), int(base_color[1] * color_factor), int(base_color[2] * color_factor))
             stars.append({"x": x, "y": y, "size": elongated_size, "color": color})
         star_layers.append(stars)
+    return(star_layers)
 
+def update_star_layers(star_layers):
+    # Draw stars
+    for i, layer in enumerate(star_layers):
+        for star in layer:
+            star["y"] += STAR_LAYERS[i]["speed"]  # Move stars based on layer speed
+            if star["y"] > WINDOW_HEIGHT + star["size"][1]:  # Wrap around if star goes off-screen
+                star["y"] = -star["size"][1]
+                star["x"] = random.randrange(WINDOW_WIDTH)
+                star["color"] = random.choice(STAR_COLORS)
+            pygame.draw.rect(window, star["color"], (star["x"], star["y"], star["size"][0], star["size"][1]))
 
+def show_menu():
+    menu_font = pygame.font.SysFont('Consolas', 48)
+    title_font = pygame.font.SysFont('Consolas', 72)
+
+    # Initialize star layers
+    star_layers = init_star_layers()
 
     title_text = title_font.render("Gravity Run", True, (255, 255, 255))
     title_rect = title_text.get_rect(midtop=(WINDOW_WIDTH // 2, 50))
 
     play_text = menu_font.render("Play", True, (255, 255, 255))
     play_rect = play_text.get_rect(midtop=(WINDOW_WIDTH // 2, 200))
-
+    
     instructions_text = menu_font.render("Instructions", True, (255, 255, 255))
     instructions_rect = instructions_text.get_rect(midtop=(WINDOW_WIDTH // 2, 300))
-
+    
     quit_text = menu_font.render("Quit", True, (255, 255, 255))
     quit_rect = quit_text.get_rect(midtop=(WINDOW_WIDTH // 2, 400))
+
+    #menu_items = [
+    #    ("Play", play_game),
+    #    ("Instructions", show_instructions),
+    #    ("Quit", quit_game)
+    #]
+
+    selected_item = 0
 
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return
-
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    selected_item = (selected_item - 1) % len(menu_items)
+                elif event.key == pygame.K_DOWN:
+                    selected_item = (selected_item + 1) % len(menu_items)
+                #elif event.key ==pygame.K_RETURN:
+                #    menu_items[selected_item][1]()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if play_rect.collidepoint(event.pos):
                     return "play"
@@ -90,25 +104,30 @@ def show_menu():
                     return
 
         window.fill((0, 0, 0))
-        # Draw stars
-        for i, layer in enumerate(star_layers):
-            for star in layer:
-                star["y"] += STAR_LAYERS[i]["speed"]  # Move stars based on layer speed
-                if star["y"] > WINDOW_HEIGHT + star["size"][1]:  # Wrap around if star goes off-screen
-                    star["y"] = -star["size"][1]
-                    star["x"] = random.randrange(WINDOW_WIDTH)
-                    star["color"] = random.choice(STAR_COLORS)
-                pygame.draw.rect(window, star["color"], (star["x"], star["y"], star["size"][0], star["size"][1]))
+        update_star_layers(star_layers)
         window.blit(title_text, title_rect)
         window.blit(play_text, play_rect)
         window.blit(instructions_text, instructions_rect)
         window.blit(quit_text, quit_rect)
+
+        # Draw menu items with highlighted selection
+        #for i, (text, function) in enumerate(menu_items):
+        #    if i == selected_item:
+        #        color = (0, 255, 0)  # Highlight the selected item in green
+        #    else:
+        #        color = (255, 255, 255)
+        #    text_surface = menu_font.render(text, True, color)
+        #    text_rect = text_surface.get_rect(midtop=(WINDOW_WIDTH // 2, 200 + i * 100))
+        #    window.blit(text_surface, text_rect)
+
         pygame.display.flip()
 
 def show_instructions():
     instructions_font = pygame.font.Font(None, 36)
     instructions_text = instructions_font.render("Instructions go here...", True, (255, 255, 255))
     instructions_rect = instructions_text.get_rect(midtop=(WINDOW_WIDTH // 2, 50))
+
+    init_star_layers()
 
     while True:
         for event in pygame.event.get():
@@ -132,6 +151,19 @@ def generate_level_layout(num_rows, offset_range):
         y_pos = -50 - (row * 200)  # Adjust the vertical spacing as needed
         layout.append({"size": size, "x": WINDOW_WIDTH // 2 + x_offset, "y": y_pos, "speed_y": 2})
     return layout
+
+def level_1_layout():
+    size_array = np.full(20,80)
+    #print(size_array)
+    x_array = np.tile([((WINDOW_WIDTH / 2) + (WINDOW_WIDTH * 0.15) - 40), ((WINDOW_WIDTH / 2) - (WINDOW_WIDTH * 0.15) - 40)],10)
+    #print(x_array)
+    y_array = np.arange(-50,-5050,-250)
+    #print(y_array)
+    layout = []
+    for i in range(len(size_array)):
+        layout.append({"size": size_array[i], "x": x_array[i], "y": y_array[i], "speed_y": 2})
+    return layout
+
 
 class Spaceship(pygame.sprite.Sprite):
     def __init__(self):
@@ -157,6 +189,10 @@ class Spaceship(pygame.sprite.Sprite):
         force_y = force * dy / distance
         self.speed_x += force_x
         self.speed_y += force_y
+        if (self.speed_x > 10):
+            self.speed_x = 10
+        if (self.speed_y > 10):
+            self.speed_y = 10
 
     def update(self):
         # Apply gravity
@@ -242,10 +278,10 @@ class BlueObject(pygame.sprite.Sprite):
 menu_choice = show_menu()
 
 # Start the game if 'Play' is selected
-if menu_choice == "play":
+if menu_choice == "play": #def play_game():  
 
     # Generate the level layout
-    level_layout = generate_level_layout(20, 150)  # Adjust the arguments as needed
+    level_layout = level_1_layout() #generate_level_layout(20, 150)  # Adjust the arguments as needed
 
     # Create the player and gravity objects
     player = Spaceship()
@@ -254,13 +290,14 @@ if menu_choice == "play":
     for obj in level_layout:
         gravity_object = GravityObject(obj["x"], obj["y"], obj["size"], obj["speed_y"])
         gravity_objects.add(gravity_object)
-        blue_object = BlueObject(obj["x"], obj["y"] - 100, obj["speed_y"])
+        blue_object = BlueObject((obj["x"] + (((WINDOW_WIDTH // 2) - obj["x"])/2)), obj["y"] - 100, obj["speed_y"])
         blue_objects.add(blue_object)
 
     # Game loop
     running = True
     clock = pygame.time.Clock()
     score = 0
+    star_layers = init_star_layers()
     while running:
         # Handle events
         for event in pygame.event.get():
@@ -288,19 +325,12 @@ if menu_choice == "play":
         window.fill((0, 0, 0))
 
         # Draw stars
-        for i, layer in enumerate(star_layers):
-            for star in layer:
-                star["y"] += STAR_LAYERS[i]["speed"]  # Move stars based on layer speed
-                if star["y"] > WINDOW_HEIGHT + star["size"][1]:  # Wrap around if star goes off-screen
-                    star["y"] = -star["size"][1]
-                    star["x"] = random.randrange(WINDOW_WIDTH)
-                    star["color"] = random.choice(STAR_COLORS)
-                pygame.draw.rect(window, star["color"], (star["x"], star["y"], star["size"][0], star["size"][1]))
+        update_star_layers(star_layers)
 
         # Check for collisions between the player and blue objects
         blue_object_hit = pygame.sprite.spritecollideany(player, blue_objects)
         if blue_object_hit:
-            score += random.randint(10, 50)  # Adjust the score range as needed
+            score += 50 #random.randint(10, 50)  # Adjust the score range as needed
             blue_object_hit.kill()
             # Display the random number at the position of the hit blue object
             font = pygame.font.SysFont("consolas",int(WINDOW_HEIGHT*0.05))
@@ -329,4 +359,5 @@ if menu_choice == "play":
         clock.tick(60)
 
 # Quit Pygame
-pygame.quit()
+def quit_game():
+    pygame.quit()
